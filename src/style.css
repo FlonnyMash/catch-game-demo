@@ -2,9 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+#game-shell {
+  touch-action: none;
+}
+
 #app canvas {
   display: block;
   width: 100%;
   height: auto;
   vertical-align: middle;
+  touch-action: none;
 }

@@ -77,6 +77,8 @@ export class PlayScene extends Phaser.Scene {
   private goodSpawnTimerEvent?: Phaser.Time.TimerEvent;
   private badSpawnTimerEvent?: Phaser.Time.TimerEvent;
   private countdownTimerEvent?: Phaser.Time.TimerEvent;
+  private touchActive = false;
+  private touchTargetX: number | null = null;
   private readonly onPlayRequested = (): void => {
     this.startRound();
   };
@@ -143,9 +145,12 @@ export class PlayScene extends Phaser.Scene {
       this,
     );
 
+    this.setupTouchInput();
+
     this.game.events.on('uiPlayRequested', this.onPlayRequested);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off('uiPlayRequested', this.onPlayRequested);
+      this.teardownTouchInput();
       this.clearRoundTimers();
     });
 
@@ -159,11 +164,26 @@ export class PlayScene extends Phaser.Scene {
     }
 
     const speed = 320;
-    const movingLeft = this.cursors.left?.isDown ?? false;
-    const movingRight = this.cursors.right?.isDown ?? false;
-    const horizontalVelocity = (Number(movingRight) - Number(movingLeft)) * speed;
-    this.player.setVelocityX(horizontalVelocity);
-    this.updatePlayerAnimation(horizontalVelocity);
+
+    if (this.touchActive && this.touchTargetX !== null) {
+      const halfWidth = this.player.displayWidth / 2;
+      const clampedX = Phaser.Math.Clamp(
+        this.touchTargetX,
+        halfWidth,
+        this.scale.width - halfWidth,
+      );
+      const dx = clampedX - this.player.x;
+      this.player.x = clampedX;
+      this.player.setVelocityX(0);
+      const animVelocity = Math.abs(dx) < 0.5 ? 0 : Math.sign(dx) * speed;
+      this.updatePlayerAnimation(animVelocity);
+    } else {
+      const movingLeft = this.cursors.left?.isDown ?? false;
+      const movingRight = this.cursors.right?.isDown ?? false;
+      const horizontalVelocity = (Number(movingRight) - Number(movingLeft)) * speed;
+      this.player.setVelocityX(horizontalVelocity);
+      this.updatePlayerAnimation(horizontalVelocity);
+    }
 
     const height = this.scale.height;
     this.itemGroup.getChildren().forEach((child) => {
@@ -185,6 +205,7 @@ export class PlayScene extends Phaser.Scene {
     this.itemGroup.clear(true, true);
     this.player.setVelocityX(0);
     this.updatePlayerAnimation(0);
+    this.clearTouchInput();
 
     this.emitScore();
     this.emitTimer();
@@ -235,7 +256,49 @@ export class PlayScene extends Phaser.Scene {
     this.itemGroup.clear(true, true);
     this.player.setVelocityX(0);
     this.updatePlayerAnimation(0);
+    this.clearTouchInput();
     this.game.events.emit('gameOver', { score: this.score });
+  }
+
+  private setupTouchInput(): void {
+    this.input.on('pointerdown', this.handlePointerDown, this);
+    this.input.on('pointermove', this.handlePointerMove, this);
+    this.input.on('pointerup', this.handlePointerUp, this);
+    this.input.on('pointerupoutside', this.handlePointerUp, this);
+  }
+
+  private clearTouchInput(): void {
+    this.touchActive = false;
+    this.touchTargetX = null;
+  }
+
+  private teardownTouchInput(): void {
+    this.input.off('pointerdown', this.handlePointerDown, this);
+    this.input.off('pointermove', this.handlePointerMove, this);
+    this.input.off('pointerup', this.handlePointerUp, this);
+    this.input.off('pointerupoutside', this.handlePointerUp, this);
+    this.clearTouchInput();
+  }
+
+  private handlePointerDown(pointer: Phaser.Input.Pointer): void {
+    if (!this.isPlaying || !pointer.isDown) {
+      return;
+    }
+
+    this.touchActive = true;
+    this.touchTargetX = pointer.worldX;
+  }
+
+  private handlePointerMove(pointer: Phaser.Input.Pointer): void {
+    if (!this.isPlaying || !this.touchActive || !pointer.isDown) {
+      return;
+    }
+
+    this.touchTargetX = pointer.worldX;
+  }
+
+  private handlePointerUp(): void {
+    this.clearTouchInput();
   }
 
   private createPlayerAnimations(): void {
