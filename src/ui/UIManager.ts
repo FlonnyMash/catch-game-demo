@@ -19,10 +19,13 @@ export class UIManager {
   private readonly finalScore: HTMLElement;
   private readonly playButton: HTMLButtonElement;
   private readonly retryButton: HTMLButtonElement;
+  private readonly debugFreezeButton: HTMLButtonElement;
   private readonly leadForm: HTMLFormElement;
   private readonly emailInput: HTMLInputElement;
+  private readonly debugModeEnabled: boolean;
 
-  constructor(root: HTMLElement) {
+  constructor(root: HTMLElement, options: { debugModeEnabled?: boolean } = {}) {
+    this.debugModeEnabled = options.debugModeEnabled ?? false;
     this.root = root;
 
     const start = document.getElementById('ui-start');
@@ -34,6 +37,7 @@ export class UIManager {
     const finalScore = document.getElementById('final-score');
     const playButton = document.getElementById('btn-play');
     const retryButton = document.getElementById('btn-retry');
+    const debugFreezeButton = document.getElementById('btn-debug-freeze');
     const leadForm = document.getElementById('lead-form');
     const emailInput = document.getElementById('lead-email');
 
@@ -47,6 +51,7 @@ export class UIManager {
       !finalScore ||
       !(playButton instanceof HTMLButtonElement) ||
       !(retryButton instanceof HTMLButtonElement) ||
+      !(debugFreezeButton instanceof HTMLButtonElement) ||
       !(leadForm instanceof HTMLFormElement) ||
       !(emailInput instanceof HTMLInputElement)
     ) {
@@ -64,6 +69,7 @@ export class UIManager {
     this.finalScore = finalScore;
     this.playButton = playButton;
     this.retryButton = retryButton;
+    this.debugFreezeButton = debugFreezeButton;
     this.leadForm = leadForm;
     this.emailInput = emailInput;
 
@@ -93,6 +99,26 @@ export class UIManager {
     this.touchControls.setAttribute('aria-hidden', isPlaying ? 'false' : 'true');
 
     this.root.setAttribute('data-ui-state', next);
+
+    if (!isPlaying) {
+      this.setDebugFrozen(false);
+    }
+
+    this.syncDebugFreezeButtonVisibility();
+  }
+
+  bindDebugFreezeToggle(handler: () => void): void {
+    this.debugFreezeButton.addEventListener('click', handler);
+  }
+
+  setDebugFrozen(frozen: boolean): void {
+    this.debugFreezeButton.textContent = frozen ? 'Resume' : 'Freeze';
+    this.debugFreezeButton.setAttribute('aria-pressed', frozen ? 'true' : 'false');
+  }
+
+  private syncDebugFreezeButtonVisibility(): void {
+    const show = this.debugModeEnabled && this.state === 'PLAYING';
+    this.debugFreezeButton.hidden = !show;
   }
 
   updateScore(score: number): void {
@@ -132,13 +158,16 @@ export class UIManager {
   }
 }
 
-export const setupUIManager = (game: Phaser.Game): UIManager => {
+export const setupUIManager = (
+  game: Phaser.Game,
+  options: { debugModeEnabled?: boolean } = {},
+): UIManager => {
   const root = document.getElementById('ui-layer');
   if (!root) {
     throw new Error('setupUIManager: #ui-layer element not found.');
   }
 
-  const ui = new UIManager(root);
+  const ui = new UIManager(root, options);
 
   const requestPlay = (): void => {
     game.events.emit('uiPlayRequested');
@@ -149,6 +178,14 @@ export const setupUIManager = (game: Phaser.Game): UIManager => {
 
   ui.bindLeadSubmit((email) => {
     game.events.emit('leadSubmitted', { email });
+  });
+
+  ui.bindDebugFreezeToggle(() => {
+    game.events.emit('debugFreezeToggled');
+  });
+
+  game.events.on('debugFreezeChanged', (payload: { frozen: boolean }) => {
+    ui.setDebugFrozen(payload.frozen);
   });
 
   game.events.on('gameStarted', () => {

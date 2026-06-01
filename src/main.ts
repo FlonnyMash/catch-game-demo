@@ -10,6 +10,7 @@ interface RuntimeConfig {
     backgroundColor: string;
     parentElementId: string;
   };
+  arcadeDebug: boolean;
 }
 
 const loadConfig = async (): Promise<Record<string, unknown>> => {
@@ -33,7 +34,15 @@ const getRuntimeConfig = (config: Record<string, unknown>): RuntimeConfig => {
     throw new Error('Invalid config.game section. Check public/config.json.');
   }
 
-  return { game };
+  const physics = config.physics as { debug?: unknown } | undefined;
+  if (physics?.debug !== undefined && typeof physics.debug !== 'boolean') {
+    throw new Error('Invalid config.physics.debug. Expected boolean.');
+  }
+
+  return {
+    game,
+    arcadeDebug: physics?.debug ?? false,
+  };
 };
 
 const bootstrapGame = async (): Promise<void> => {
@@ -50,7 +59,7 @@ const bootstrapGame = async (): Promise<void> => {
       default: 'arcade',
       arcade: {
         gravity: { x: 0, y: 0 },
-        debug: false,
+        debug: runtimeConfig.arcadeDebug,
       },
     },
     callbacks: {
@@ -62,7 +71,7 @@ const bootstrapGame = async (): Promise<void> => {
   };
 
   const game = new Phaser.Game(phaserConfig);
-  setupUIManager(game);
+  setupUIManager(game, { debugModeEnabled: runtimeConfig.arcadeDebug });
 };
 
 void bootstrapGame();

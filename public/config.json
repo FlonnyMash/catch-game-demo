@@ -7,6 +7,11 @@
   },
 
   "assets": {
+    "ground": {
+      "image": "/assets/ground.png",
+      "height": 36
+    },
+
     "player": "/assets/player.png",
     "playerSprite": {
       "frameWidth": 128,
@@ -25,14 +30,22 @@
         "image": "/assets/good-1.png",
         "frameWidth": 64,
         "frameHeight": 64,
-        "displayWidth": 48
+        "displayWidth": 48,
+        "hitbox": {
+          "width": 0.85,
+          "height": 0.85
+        }
       },
 
       {
         "image": "/assets/good-2.png",
         "frameWidth": 64,
         "frameHeight": 64,
-        "displayWidth": 48
+        "displayWidth": 48,
+        "hitbox": {
+          "width": 0.85,
+          "height": 0.85
+        }
       }
     ],
 
@@ -42,8 +55,14 @@
         "frameWidth": 64,
         "frameHeight": 64,
         "displayWidth": 48,
+        "hitbox": {
+          "width": 0.8,
+          "height": 0.8,
+          "offsetX": 0.05,
+          "offsetY": 0.05
+        },
         "fallSpeed": 260,
-        "rotateWhileFalling": true,
+        "rotateWhileFalling": false,
         "fallRotationSpeed": 480
       },
 
@@ -59,6 +78,7 @@
   },
 
   "physics": {
+    "debug": true,
     "goodItemSpawnRateMs": 1200,
     "badItemSpawnRateMs": 2000,
     "itemFallSpeedMin": 120,

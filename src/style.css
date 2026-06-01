@@ -42,8 +42,9 @@
   height: 100%;
 }
 
-#ui-hud {
+#ui-hud:not(.hidden) {
   align-self: flex-start;
+  display: flex;
 }
 
 #app canvas {
