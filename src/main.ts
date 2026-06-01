@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PlayScene } from './game/scenes/PlayScene';
+import { setupUIManager } from './ui/UIManager';
 import './style.css';
 
 interface RuntimeConfig {
@@ -60,7 +61,8 @@ const bootstrapGame = async (): Promise<void> => {
     scene: [PlayScene],
   };
 
-  new Phaser.Game(phaserConfig);
+  const game = new Phaser.Game(phaserConfig);
+  setupUIManager(game);
 };
 
 void bootstrapGame();

@@ -14,9 +14,16 @@ interface PhysicsConfig {
   itemFallSpeedMax: number;
 }
 
+interface GameplayConfig {
+  durationSeconds: number;
+  scorePerGoodItem: number;
+  scorePerBadItem: number;
+}
+
 interface GameConfig {
   assets: AssetConfig;
   physics: PhysicsConfig;
+  gameplay: GameplayConfig;
 }
 
 interface FallingItemData {
@@ -34,6 +41,14 @@ export class PlayScene extends Phaser.Scene {
   private config!: GameConfig;
   private minFallSpeed = 0;
   private maxFallSpeed = 0;
+  private isPlaying = false;
+  private score = 0;
+  private timeRemaining = 0;
+  private spawnTimerEvent?: Phaser.Time.TimerEvent;
+  private countdownTimerEvent?: Phaser.Time.TimerEvent;
+  private readonly onPlayRequested = (): void => {
+    this.startRound();
+  };
 
   constructor() {
     super('PlayScene');
@@ -69,19 +84,28 @@ export class PlayScene extends Phaser.Scene {
 
     this.minFallSpeed = this.config.physics.itemFallSpeedMin;
     this.maxFallSpeed = this.config.physics.itemFallSpeedMax;
+    this.timeRemaining = this.config.gameplay.durationSeconds;
 
-    this.time.addEvent({
-      delay: this.config.physics.itemSpawnRateMs,
-      loop: true,
-      callback: this.spawnItem,
-      callbackScope: this,
+    this.physics.add.overlap(
+      this.player,
+      this.itemGroup,
+      this.handleItemCaught as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+      undefined,
+      this,
+    );
+
+    this.game.events.on('uiPlayRequested', this.onPlayRequested);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.game.events.off('uiPlayRequested', this.onPlayRequested);
+      this.clearRoundTimers();
     });
 
-    this.physics.add.overlap(this.player, this.itemGroup, this.handleItemCaught as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback, undefined, this);
+    this.emitScore();
+    this.emitTimer();
   }
 
   update(): void {
-    if (!this.player || !this.player.active) {
+    if (!this.isPlaying || !this.player?.active) {
       return;
     }
 
@@ -100,7 +124,73 @@ export class PlayScene extends Phaser.Scene {
     });
   }
 
+  private startRound(): void {
+    if (this.isPlaying) {
+      return;
+    }
+
+    this.isPlaying = true;
+    this.score = 0;
+    this.timeRemaining = this.config.gameplay.durationSeconds;
+    this.itemGroup.clear(true, true);
+    this.player.setVelocityX(0);
+
+    this.emitScore();
+    this.emitTimer();
+    this.game.events.emit('gameStarted');
+
+    this.spawnTimerEvent = this.time.addEvent({
+      delay: this.config.physics.itemSpawnRateMs,
+      loop: true,
+      callback: this.spawnItem,
+      callbackScope: this,
+    });
+
+    this.countdownTimerEvent = this.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: this.tickTimer,
+      callbackScope: this,
+    });
+  }
+
+  private tickTimer(): void {
+    if (!this.isPlaying) {
+      return;
+    }
+
+    this.timeRemaining -= 1;
+    this.emitTimer();
+
+    if (this.timeRemaining <= 0) {
+      this.endRound();
+    }
+  }
+
+  private endRound(): void {
+    if (!this.isPlaying) {
+      return;
+    }
+
+    this.isPlaying = false;
+    this.clearRoundTimers();
+    this.itemGroup.clear(true, true);
+    this.player.setVelocityX(0);
+    this.game.events.emit('gameOver', { score: this.score });
+  }
+
+  private clearRoundTimers(): void {
+    this.spawnTimerEvent?.remove();
+    this.spawnTimerEvent = undefined;
+    this.countdownTimerEvent?.remove();
+    this.countdownTimerEvent = undefined;
+  }
+
   private spawnItem(): void {
+    if (!this.isPlaying) {
+      return;
+    }
+
     const itemType: ItemType = Phaser.Math.Between(0, 1) === 0 ? 'good' : 'bad';
     const textureKey = this.getRandomTextureKey(itemType);
     const x = Phaser.Math.Between(24, Math.max(24, this.scale.width - 24));
@@ -135,7 +225,7 @@ export class PlayScene extends Phaser.Scene {
     _player: Phaser.Physics.Arcade.Body | Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
     itemTarget: Phaser.Physics.Arcade.Body | Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
   ): void {
-    if (!('getData' in itemTarget)) {
+    if (!this.isPlaying || !('getData' in itemTarget)) {
       return;
     }
 
@@ -147,7 +237,23 @@ export class PlayScene extends Phaser.Scene {
     }
 
     item.destroy();
+
+    if (itemType === 'good') {
+      this.score += this.config.gameplay.scorePerGoodItem;
+    } else {
+      this.score = Math.max(0, this.score - this.config.gameplay.scorePerBadItem);
+    }
+
+    this.emitScore();
     this.game.events.emit('itemCaught', { type: itemType });
+  }
+
+  private emitScore(): void {
+    this.game.events.emit('scoreUpdated', this.score);
+  }
+
+  private emitTimer(): void {
+    this.game.events.emit('timerUpdated', this.timeRemaining);
   }
 
   private getConfig(): GameConfig {
@@ -163,9 +269,12 @@ export class PlayScene extends Phaser.Scene {
       !Array.isArray(config.assets.badItems) ||
       typeof config.physics?.itemSpawnRateMs !== 'number' ||
       typeof config.physics.itemFallSpeedMin !== 'number' ||
-      typeof config.physics.itemFallSpeedMax !== 'number'
+      typeof config.physics.itemFallSpeedMax !== 'number' ||
+      typeof config.gameplay?.durationSeconds !== 'number' ||
+      typeof config.gameplay.scorePerGoodItem !== 'number' ||
+      typeof config.gameplay.scorePerBadItem !== 'number'
     ) {
-      throw new Error('Invalid config shape. Verify assets and physics values in public/config.json.');
+      throw new Error('Invalid config shape. Verify assets, physics, and gameplay values in public/config.json.');
     }
 
     return config as GameConfig;

@@ -5,9 +5,114 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Catch Game Demo</title>
   </head>
-  <body>
-    <div id="app"></div>
-    <div id="ui-layer"></div>
+  <body class="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased">
+    <div
+      id="game-shell"
+      class="relative mx-auto w-full max-w-[360px] shadow-2xl shadow-black/40"
+    >
+      <div id="app" class="block w-full"></div>
+
+      <div
+        id="ui-layer"
+        class="pointer-events-none absolute inset-0 z-10 flex flex-col"
+      >
+        <!-- Start Screen -->
+        <section
+          id="ui-start"
+          class="pointer-events-auto flex flex-1 flex-col items-center justify-center gap-6 bg-slate-950/80 px-6 text-center"
+          aria-label="Start screen"
+        >
+          <div class="flex flex-col gap-3">
+            <h1 class="text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
+              Catch &amp; Win
+            </h1>
+            <p class="max-w-xs text-base leading-relaxed text-slate-400">
+              Catch items to unlock your reward
+            </p>
+          </div>
+          <button
+            id="btn-play"
+            type="button"
+            class="min-h-12 w-full max-w-xs rounded-xl bg-slate-100 px-8 py-3.5 text-base font-medium text-slate-900 transition-colors hover:bg-white active:bg-slate-200"
+          >
+            Play Now
+          </button>
+        </section>
+
+        <!-- HUD -->
+        <section
+          id="ui-hud"
+          class="hidden flex-1 flex-col"
+          aria-label="Game HUD"
+        >
+          <div class="flex items-start justify-between px-4 pt-4">
+            <div class="rounded-lg bg-slate-900/60 px-3 py-2 backdrop-blur-sm">
+              <span class="block text-[10px] font-medium uppercase tracking-wider text-slate-500">
+                Score
+              </span>
+              <span
+                id="hud-score"
+                class="text-xl font-semibold tabular-nums text-slate-50"
+              >0</span>
+            </div>
+            <div class="rounded-lg bg-slate-900/60 px-3 py-2 backdrop-blur-sm">
+              <span class="block text-[10px] font-medium uppercase tracking-wider text-slate-500">
+                Time
+              </span>
+              <span
+                id="hud-timer"
+                class="text-xl font-semibold tabular-nums text-slate-50"
+              >0:30</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Game Over / Lead Capture -->
+        <section
+          id="ui-gameover"
+          class="hidden flex flex-1 items-center justify-center px-4 py-8"
+          aria-label="Game over"
+          aria-modal="true"
+          role="dialog"
+        >
+          <div
+            class="pointer-events-auto w-full max-w-sm rounded-2xl border border-slate-700/50 bg-slate-900/70 p-6 shadow-xl backdrop-blur-md"
+          >
+            <p class="text-center text-sm font-medium uppercase tracking-wider text-slate-500">
+              Final Score
+            </p>
+            <p
+              id="final-score"
+              class="mt-1 text-center text-4xl font-semibold tabular-nums text-slate-50"
+            >
+              0
+            </p>
+            <p class="mt-4 text-center text-sm leading-relaxed text-slate-400">
+              Enter your email to claim your exclusive discount.
+            </p>
+            <form id="lead-form" class="mt-6 flex flex-col gap-4">
+              <label for="lead-email" class="sr-only">Email address</label>
+              <input
+                id="lead-email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                placeholder="you@example.com"
+                required
+                class="min-h-12 w-full rounded-xl border border-slate-600 bg-slate-950/50 px-4 text-base text-slate-100 placeholder:text-slate-500 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/30"
+              />
+              <button
+                id="btn-claim"
+                type="submit"
+                class="min-h-12 w-full rounded-xl bg-slate-100 px-6 py-3.5 text-base font-medium text-slate-900 transition-colors hover:bg-white active:bg-slate-200"
+              >
+                Claim 15% Off
+              </button>
+            </form>
+          </div>
+        </section>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

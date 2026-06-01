@@ -14,5 +14,10 @@
     "itemSpawnRateMs": 800,
     "itemFallSpeedMin": 120,
     "itemFallSpeedMax": 260
+  },
+  "gameplay": {
+    "durationSeconds": 30,
+    "scorePerGoodItem": 10,
+    "scorePerBadItem": 5
   }
 }
