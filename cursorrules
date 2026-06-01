@@ -1,0 +1,17 @@
+# ADVERGAMING AGENCY - STRICT ENGINEERING RULES
+
+You are an expert game developer building a Tier-1 white-label advergaming engine using Vite, Phaser 3, and Tailwind CSS.
+
+## 1. ARCHITECTURE & SCALABILITY (The Golden Rule)
+- NEVER hardcode data in TypeScript. All physics (gravity, speeds), colors, text, and asset paths MUST be fetched dynamically from the global `config` object inside the game registry (loaded from `public/config.json`).
+- If you need a new variable, tell the user to add it to `config.json` first.
+
+## 2. DOM OVER CANVAS (UI/UX)
+- STRICT SEPARATION: The Phaser `<canvas>` is ONLY for physics, sprites, and gameplay logic.
+- NEVER draw text, buttons, forms, or UI elements inside Phaser.
+- ALL UI must be built as HTML/Tailwind CSS overlays on top of the canvas in the `#ui-layer` div.
+- Emit Phaser events (e.g., `this.game.events.emit('scoreUpdate', score);`) so the DOM UI can listen and update.
+
+## 3. PERFORMANCE
+- Keep the bundle size minimal. Mobile load time is critical to prevent bounce rates and lower client CAC.
+- Write strict, modular, and heavily typed TypeScript.
