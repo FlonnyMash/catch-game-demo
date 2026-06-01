@@ -2,19 +2,69 @@
   "game": {
     "width": 360,
     "height": 640,
-    "backgroundColor": "#0f172a",
+    "backgroundColor": "#00b9da",
     "parentElementId": "app"
   },
+
   "assets": {
     "player": "/assets/player.png",
-    "goodItems": ["/assets/good-1.png", "/assets/good-2.png"],
-    "badItems": ["/assets/bad-1.png", "/assets/bad-2.png"]
+    "playerSprite": {
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "displayWidth": 80,
+      "flipXWhenMovingRight": true,
+      "walkAnimation": {
+        "start": 0,
+        "end": 3,
+        "frameRate": 12
+      }
+    },
+
+    "goodItems": [
+      {
+        "image": "/assets/good-1.png",
+        "frameWidth": 64,
+        "frameHeight": 64,
+        "displayWidth": 48
+      },
+
+      {
+        "image": "/assets/good-2.png",
+        "frameWidth": 64,
+        "frameHeight": 64,
+        "displayWidth": 48
+      }
+    ],
+
+    "badItems": [
+      {
+        "image": "/assets/bad-1.png",
+        "frameWidth": 64,
+        "frameHeight": 64,
+        "displayWidth": 48,
+        "fallSpeed": 260,
+        "rotateWhileFalling": true,
+        "fallRotationSpeed": 480
+      },
+
+      {
+        "image": "/assets/bad-2.png",
+        "frameWidth": 64,
+        "frameHeight": 64,
+        "displayWidth": 48,
+        "fallSpeed": 140,
+        "rotateWhileFalling": false
+      }
+    ]
   },
+
   "physics": {
-    "itemSpawnRateMs": 800,
+    "goodItemSpawnRateMs": 1200,
+    "badItemSpawnRateMs": 2000,
     "itemFallSpeedMin": 120,
     "itemFallSpeedMax": 260
   },
+
   "gameplay": {
     "durationSeconds": 30,
     "scorePerGoodItem": 10,

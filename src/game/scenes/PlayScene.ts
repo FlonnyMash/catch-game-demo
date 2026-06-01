@@ -2,14 +2,43 @@ import Phaser from 'phaser';
 
 type ItemType = 'good' | 'bad';
 
+interface SpriteFrameConfig {
+  frameWidth: number;
+  frameHeight: number;
+  displayWidth?: number;
+}
+
+interface GoodItemConfig extends SpriteFrameConfig {
+  image: string;
+}
+
+interface BadItemConfig extends GoodItemConfig {
+  fallSpeed: number;
+  rotateWhileFalling?: boolean;
+  /** Degrees per second; random spin direction when omitted uses ±1. */
+  fallRotationSpeed?: number;
+}
+
+interface PlayerSpriteConfig extends SpriteFrameConfig {
+  /** When true, mirror the sprite while moving right; when false, mirror while moving left. */
+  flipXWhenMovingRight?: boolean;
+  walkAnimation: {
+    start: number;
+    end: number;
+    frameRate: number;
+  };
+}
+
 interface AssetConfig {
   player: string;
-  goodItems: string[];
-  badItems: string[];
+  playerSprite: PlayerSpriteConfig;
+  goodItems: GoodItemConfig[];
+  badItems: BadItemConfig[];
 }
 
 interface PhysicsConfig {
-  itemSpawnRateMs: number;
+  goodItemSpawnRateMs: number;
+  badItemSpawnRateMs: number;
   itemFallSpeedMin: number;
   itemFallSpeedMax: number;
 }
@@ -31,6 +60,7 @@ interface FallingItemData {
 }
 
 const PLAYER_TEXTURE_KEY = 'player';
+const PLAYER_WALK_ANIM_KEY = 'player-walk';
 const GOOD_TEXTURE_PREFIX = 'item-good-';
 const BAD_TEXTURE_PREFIX = 'item-bad-';
 
@@ -44,7 +74,8 @@ export class PlayScene extends Phaser.Scene {
   private isPlaying = false;
   private score = 0;
   private timeRemaining = 0;
-  private spawnTimerEvent?: Phaser.Time.TimerEvent;
+  private goodSpawnTimerEvent?: Phaser.Time.TimerEvent;
+  private badSpawnTimerEvent?: Phaser.Time.TimerEvent;
   private countdownTimerEvent?: Phaser.Time.TimerEvent;
   private readonly onPlayRequested = (): void => {
     this.startRound();
@@ -56,14 +87,24 @@ export class PlayScene extends Phaser.Scene {
 
   preload(): void {
     this.config = this.getConfig();
-    this.load.image(PLAYER_TEXTURE_KEY, this.config.assets.player);
-
-    this.config.assets.goodItems.forEach((assetPath, index) => {
-      this.load.image(`${GOOD_TEXTURE_PREFIX}${index}`, assetPath);
+    const { frameWidth, frameHeight } = this.config.assets.playerSprite;
+    this.load.spritesheet(PLAYER_TEXTURE_KEY, this.config.assets.player, {
+      frameWidth,
+      frameHeight,
     });
 
-    this.config.assets.badItems.forEach((assetPath, index) => {
-      this.load.image(`${BAD_TEXTURE_PREFIX}${index}`, assetPath);
+    this.config.assets.goodItems.forEach((item, index) => {
+      this.load.spritesheet(`${GOOD_TEXTURE_PREFIX}${index}`, item.image, {
+        frameWidth: item.frameWidth,
+        frameHeight: item.frameHeight,
+      });
+    });
+
+    this.config.assets.badItems.forEach((item, index) => {
+      this.load.spritesheet(`${BAD_TEXTURE_PREFIX}${index}`, item.image, {
+        frameWidth: item.frameWidth,
+        frameHeight: item.frameHeight,
+      });
     });
   }
 
@@ -73,11 +114,19 @@ export class PlayScene extends Phaser.Scene {
     const worldBounds = this.physics.world.bounds;
     worldBounds.setTo(0, 0, width, height);
 
+    this.createPlayerAnimations();
+
     this.player = this.physics.add.sprite(width / 2, height - 48, PLAYER_TEXTURE_KEY);
     this.player.setCollideWorldBounds(true);
     this.player.setImmovable(true);
     this.player.setGravity(0, 0);
     this.player.setVelocity(0, 0);
+
+    const { frameWidth, frameHeight, displayWidth } = this.config.assets.playerSprite;
+    const targetWidth = displayWidth ?? frameWidth;
+    const targetHeight = (targetWidth / frameWidth) * frameHeight;
+    this.player.setDisplaySize(targetWidth, targetHeight);
+    this.player.setFrame(this.config.assets.playerSprite.walkAnimation.start);
 
     this.cursors = this.input.keyboard?.createCursorKeys() ?? ({} as Phaser.Types.Input.Keyboard.CursorKeys);
     this.itemGroup = this.physics.add.group({ allowGravity: false });
@@ -114,6 +163,7 @@ export class PlayScene extends Phaser.Scene {
     const movingRight = this.cursors.right?.isDown ?? false;
     const horizontalVelocity = (Number(movingRight) - Number(movingLeft)) * speed;
     this.player.setVelocityX(horizontalVelocity);
+    this.updatePlayerAnimation(horizontalVelocity);
 
     const height = this.scale.height;
     this.itemGroup.getChildren().forEach((child) => {
@@ -134,15 +184,23 @@ export class PlayScene extends Phaser.Scene {
     this.timeRemaining = this.config.gameplay.durationSeconds;
     this.itemGroup.clear(true, true);
     this.player.setVelocityX(0);
+    this.updatePlayerAnimation(0);
 
     this.emitScore();
     this.emitTimer();
     this.game.events.emit('gameStarted');
 
-    this.spawnTimerEvent = this.time.addEvent({
-      delay: this.config.physics.itemSpawnRateMs,
+    this.goodSpawnTimerEvent = this.time.addEvent({
+      delay: this.config.physics.goodItemSpawnRateMs,
       loop: true,
-      callback: this.spawnItem,
+      callback: () => this.spawnItem('good'),
+      callbackScope: this,
+    });
+
+    this.badSpawnTimerEvent = this.time.addEvent({
+      delay: this.config.physics.badItemSpawnRateMs,
+      loop: true,
+      callback: () => this.spawnItem('bad'),
       callbackScope: this,
     });
 
@@ -176,23 +234,60 @@ export class PlayScene extends Phaser.Scene {
     this.clearRoundTimers();
     this.itemGroup.clear(true, true);
     this.player.setVelocityX(0);
+    this.updatePlayerAnimation(0);
     this.game.events.emit('gameOver', { score: this.score });
   }
 
+  private createPlayerAnimations(): void {
+    const { walkAnimation } = this.config.assets.playerSprite;
+
+    if (this.anims.exists(PLAYER_WALK_ANIM_KEY)) {
+      return;
+    }
+
+    this.anims.create({
+      key: PLAYER_WALK_ANIM_KEY,
+      frames: this.anims.generateFrameNumbers(PLAYER_TEXTURE_KEY, {
+        start: walkAnimation.start,
+        end: walkAnimation.end,
+      }),
+      frameRate: walkAnimation.frameRate,
+      repeat: -1,
+    });
+  }
+
+  private updatePlayerAnimation(horizontalVelocity: number): void {
+    const idleFrame = this.config.assets.playerSprite.walkAnimation.start;
+
+    if (horizontalVelocity === 0) {
+      this.player.anims.stop();
+      this.player.setFrame(idleFrame);
+      return;
+    }
+
+    const flipWhenMovingRight = this.config.assets.playerSprite.flipXWhenMovingRight ?? true;
+    const movingRight = horizontalVelocity > 0;
+    this.player.setFlipX(flipWhenMovingRight ? movingRight : !movingRight);
+
+    if (!this.player.anims.isPlaying || this.player.anims.currentAnim?.key !== PLAYER_WALK_ANIM_KEY) {
+      this.player.play(PLAYER_WALK_ANIM_KEY);
+    }
+  }
+
   private clearRoundTimers(): void {
-    this.spawnTimerEvent?.remove();
-    this.spawnTimerEvent = undefined;
+    this.goodSpawnTimerEvent?.remove();
+    this.goodSpawnTimerEvent = undefined;
+    this.badSpawnTimerEvent?.remove();
+    this.badSpawnTimerEvent = undefined;
     this.countdownTimerEvent?.remove();
     this.countdownTimerEvent = undefined;
   }
 
-  private spawnItem(): void {
+  private spawnItem(itemType: ItemType): void {
     if (!this.isPlaying) {
       return;
     }
-
-    const itemType: ItemType = Phaser.Math.Between(0, 1) === 0 ? 'good' : 'bad';
-    const textureKey = this.getRandomTextureKey(itemType);
+    const { textureKey, itemConfig } = this.pickRandomItem(itemType);
     const x = Phaser.Math.Between(24, Math.max(24, this.scale.width - 24));
     const y = -16;
 
@@ -203,22 +298,58 @@ export class PlayScene extends Phaser.Scene {
 
     item.setActive(true);
     item.setVisible(true);
+    item.setFrame(0);
+    this.applyItemDisplaySize(item, itemConfig);
     item.setGravity(0, 0);
-    item.setVelocityY(Phaser.Math.Between(this.minFallSpeed, this.maxFallSpeed));
+    item.setVelocityY(this.getFallSpeed(itemType, itemConfig));
     item.setData('type', itemType);
+
+    if (itemType === 'bad') {
+      this.applyBadItemFallRotation(item, itemConfig as BadItemConfig);
+    }
   }
 
-  private getRandomTextureKey(itemType: ItemType): string {
-    const keys =
-      itemType === 'good'
-        ? this.config.assets.goodItems.map((_, index) => `${GOOD_TEXTURE_PREFIX}${index}`)
-        : this.config.assets.badItems.map((_, index) => `${BAD_TEXTURE_PREFIX}${index}`);
-
-    if (keys.length === 0) {
-      throw new Error(`Missing asset paths for ${itemType} items in config.assets.${itemType}Items`);
+  private getFallSpeed(itemType: ItemType, itemConfig: GoodItemConfig | BadItemConfig): number {
+    if (itemType === 'bad') {
+      return (itemConfig as BadItemConfig).fallSpeed;
     }
 
-    return keys[Phaser.Math.Between(0, keys.length - 1)];
+    return Phaser.Math.Between(this.minFallSpeed, this.maxFallSpeed);
+  }
+
+  private applyBadItemFallRotation(item: Phaser.Physics.Arcade.Image, itemConfig: BadItemConfig): void {
+    if (!itemConfig.rotateWhileFalling) {
+      return;
+    }
+
+    const speed = itemConfig.fallRotationSpeed ?? 120;
+    const direction = Phaser.Math.Between(0, 1) === 0 ? -1 : 1;
+    const body = item.body;
+    if (body && 'setAllowRotation' in body) {
+      body.setAllowRotation(true);
+    }
+    item.setAngularVelocity(speed * direction);
+  }
+
+  private applyItemDisplaySize(item: Phaser.Physics.Arcade.Image, itemConfig: GoodItemConfig): void {
+    const targetWidth = itemConfig.displayWidth ?? itemConfig.frameWidth;
+    const targetHeight = (targetWidth / itemConfig.frameWidth) * itemConfig.frameHeight;
+    item.setDisplaySize(targetWidth, targetHeight);
+  }
+
+  private pickRandomItem(itemType: ItemType): { textureKey: string; itemConfig: GoodItemConfig | BadItemConfig } {
+    const items = itemType === 'good' ? this.config.assets.goodItems : this.config.assets.badItems;
+    const prefix = itemType === 'good' ? GOOD_TEXTURE_PREFIX : BAD_TEXTURE_PREFIX;
+
+    if (items.length === 0) {
+      throw new Error(`No ${itemType} items defined in config.assets.${itemType}Items`);
+    }
+
+    const index = Phaser.Math.Between(0, items.length - 1);
+    return {
+      textureKey: `${prefix}${index}`,
+      itemConfig: items[index],
+    };
   }
 
   private handleItemCaught(
@@ -265,9 +396,15 @@ export class PlayScene extends Phaser.Scene {
     const config = rawConfig as Partial<GameConfig>;
     if (
       !config.assets?.player ||
-      !Array.isArray(config.assets.goodItems) ||
-      !Array.isArray(config.assets.badItems) ||
-      typeof config.physics?.itemSpawnRateMs !== 'number' ||
+      typeof config.assets.playerSprite?.frameWidth !== 'number' ||
+      typeof config.assets.playerSprite?.frameHeight !== 'number' ||
+      typeof config.assets.playerSprite?.walkAnimation?.start !== 'number' ||
+      typeof config.assets.playerSprite?.walkAnimation?.end !== 'number' ||
+      typeof config.assets.playerSprite?.walkAnimation?.frameRate !== 'number' ||
+      !this.isValidGoodItems(config.assets.goodItems) ||
+      !this.isValidBadItems(config.assets.badItems) ||
+      typeof config.physics?.goodItemSpawnRateMs !== 'number' ||
+      typeof config.physics?.badItemSpawnRateMs !== 'number' ||
       typeof config.physics.itemFallSpeedMin !== 'number' ||
       typeof config.physics.itemFallSpeedMax !== 'number' ||
       typeof config.gameplay?.durationSeconds !== 'number' ||
@@ -278,5 +415,34 @@ export class PlayScene extends Phaser.Scene {
     }
 
     return config as GameConfig;
+  }
+
+  private isValidGoodItems(items: unknown): items is GoodItemConfig[] {
+    return (
+      Array.isArray(items) &&
+      items.length > 0 &&
+      items.every(
+        (item) =>
+          typeof item === 'object' &&
+          item !== null &&
+          typeof (item as GoodItemConfig).image === 'string' &&
+          typeof (item as GoodItemConfig).frameWidth === 'number' &&
+          typeof (item as GoodItemConfig).frameHeight === 'number' &&
+          ((item as GoodItemConfig).displayWidth === undefined ||
+            typeof (item as GoodItemConfig).displayWidth === 'number'),
+      )
+    );
+  }
+
+  private isValidBadItems(items: unknown): items is BadItemConfig[] {
+    return (
+      this.isValidGoodItems(items) &&
+      (items as BadItemConfig[]).every(
+        (item) =>
+          typeof item.fallSpeed === 'number' &&
+          (item.rotateWhileFalling === undefined || typeof item.rotateWhileFalling === 'boolean') &&
+          (item.fallRotationSpeed === undefined || typeof item.fallRotationSpeed === 'number'),
+      )
+    );
   }
 }

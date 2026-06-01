@@ -16,6 +16,7 @@ export class UIManager {
   private readonly hudTimer: HTMLElement;
   private readonly finalScore: HTMLElement;
   private readonly playButton: HTMLButtonElement;
+  private readonly retryButton: HTMLButtonElement;
   private readonly leadForm: HTMLFormElement;
   private readonly emailInput: HTMLInputElement;
 
@@ -29,6 +30,7 @@ export class UIManager {
     const hudTimer = document.getElementById('hud-timer');
     const finalScore = document.getElementById('final-score');
     const playButton = document.getElementById('btn-play');
+    const retryButton = document.getElementById('btn-retry');
     const leadForm = document.getElementById('lead-form');
     const emailInput = document.getElementById('lead-email');
 
@@ -40,6 +42,7 @@ export class UIManager {
       !hudTimer ||
       !finalScore ||
       !(playButton instanceof HTMLButtonElement) ||
+      !(retryButton instanceof HTMLButtonElement) ||
       !(leadForm instanceof HTMLFormElement) ||
       !(emailInput instanceof HTMLInputElement)
     ) {
@@ -55,6 +58,7 @@ export class UIManager {
     this.hudTimer = hudTimer;
     this.finalScore = finalScore;
     this.playButton = playButton;
+    this.retryButton = retryButton;
     this.leadForm = leadForm;
     this.emailInput = emailInput;
 
@@ -107,6 +111,10 @@ export class UIManager {
     this.playButton.addEventListener('click', handler);
   }
 
+  bindRetry(handler: () => void): void {
+    this.retryButton.addEventListener('click', handler);
+  }
+
   bindLeadSubmit(handler: (email: string) => void): void {
     this.leadForm.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -127,9 +135,12 @@ export const setupUIManager = (game: Phaser.Game): UIManager => {
 
   const ui = new UIManager(root);
 
-  ui.bindPlay(() => {
+  const requestPlay = (): void => {
     game.events.emit('uiPlayRequested');
-  });
+  };
+
+  ui.bindPlay(requestPlay);
+  ui.bindRetry(requestPlay);
 
   ui.bindLeadSubmit((email) => {
     game.events.emit('leadSubmitted', { email });
