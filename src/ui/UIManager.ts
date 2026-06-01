@@ -13,7 +13,7 @@ export class UIManager {
   private state: UIState = 'START';
   private readonly root: HTMLElement;
   private readonly panels: Record<UIState, HTMLElement>;
-  private readonly touchZone: HTMLElement;
+  private readonly touchControls: HTMLElement;
   private readonly hudScore: HTMLElement;
   private readonly hudTimer: HTMLElement;
   private readonly finalScore: HTMLElement;
@@ -28,7 +28,7 @@ export class UIManager {
     const start = document.getElementById('ui-start');
     const hud = document.getElementById('ui-hud');
     const gameover = document.getElementById('ui-gameover');
-    const touchZone = document.getElementById('touch-zone');
+    const touchControls = document.getElementById('touch-controls');
     const hudScore = document.getElementById('hud-score');
     const hudTimer = document.getElementById('hud-timer');
     const finalScore = document.getElementById('final-score');
@@ -41,7 +41,7 @@ export class UIManager {
       !start ||
       !hud ||
       !gameover ||
-      !touchZone ||
+      !touchControls ||
       !hudScore ||
       !hudTimer ||
       !finalScore ||
@@ -58,7 +58,7 @@ export class UIManager {
       PLAYING: hud,
       GAMEOVER: gameover,
     };
-    this.touchZone = touchZone;
+    this.touchControls = touchControls;
     this.hudScore = hudScore;
     this.hudTimer = hudTimer;
     this.finalScore = finalScore;
@@ -88,9 +88,9 @@ export class UIManager {
     });
 
     const isPlaying = next === 'PLAYING';
-    this.touchZone.classList.toggle('hidden', !isPlaying);
-    this.touchZone.classList.toggle('touch-zone--active', isPlaying);
-    this.touchZone.setAttribute('aria-hidden', isPlaying ? 'false' : 'true');
+    this.touchControls.classList.toggle('hidden', !isPlaying);
+    this.touchControls.classList.toggle('touch-controls--active', isPlaying);
+    this.touchControls.setAttribute('aria-hidden', isPlaying ? 'false' : 'true');
 
     this.root.setAttribute('data-ui-state', next);
   }

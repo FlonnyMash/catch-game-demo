@@ -13,12 +13,6 @@
       <div id="game-stage">
         <div id="app"></div>
 
-        <div
-          id="touch-zone"
-          class="pointer-events-none hidden touch-none"
-          aria-hidden="true"
-        ></div>
-
         <div id="ui-layer" class="pointer-events-none">
           <section
             id="ui-start"
@@ -121,6 +115,24 @@
           </section>
         </div>
       </div>
+
+      <aside
+        id="touch-controls"
+        class="touch-controls hidden"
+        aria-hidden="true"
+        aria-label="Player controls"
+      >
+        <p class="touch-controls__hint">Slide to move the player</p>
+        <div
+          id="touch-zone"
+          class="touch-controls__pad"
+          role="slider"
+          aria-label="Move player left and right"
+          tabindex="0"
+        >
+          <div id="touch-indicator" class="touch-controls__thumb" aria-hidden="true"></div>
+        </div>
+      </aside>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

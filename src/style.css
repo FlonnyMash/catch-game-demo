@@ -4,40 +4,26 @@
 @source '../src/**/*.{js,ts,jsx,tsx}';
 
 #game-shell {
+  display: flex;
+  flex-direction: column;
   touch-action: none;
 }
 
 #game-stage {
-  width: 100%;
-  position: relative;
-}
-
-/* Canvas, touch layer, and UI share one cell inside #app */
-#game-stage #app {
   display: grid;
   width: 100%;
   position: relative;
   isolation: isolate;
 }
 
-#game-stage #app > * {
+#game-stage > * {
   grid-area: 1 / 1;
   min-width: 0;
 }
 
-#game-stage #app > :not(#touch-zone):not(#ui-layer) {
+#game-stage #app {
   z-index: 0;
-}
-
-#game-stage #touch-zone {
-  z-index: 3;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-#game-stage #touch-zone.touch-zone--active {
-  pointer-events: auto;
+  position: relative;
 }
 
 #game-stage #ui-layer {
@@ -58,7 +44,6 @@
 
 #ui-hud {
   align-self: flex-start;
-  z-index: 3;
 }
 
 #app canvas {
@@ -67,4 +52,65 @@
   height: auto;
   vertical-align: middle;
   touch-action: none;
+}
+
+/* Touch control strip — below the game, visible only while playing */
+.touch-controls {
+  display: none;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0 0;
+  border-top: 1px solid rgb(51 65 85 / 0.6);
+  background: rgb(15 23 42);
+}
+
+.touch-controls.touch-controls--active {
+  display: flex;
+}
+
+.touch-controls__hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+}
+
+.touch-controls__pad {
+  position: relative;
+  height: 5rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(71 85 105 / 0.8);
+  background: linear-gradient(180deg, rgb(30 41 59) 0%, rgb(15 23 42) 100%);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.touch-controls__pad:active {
+  cursor: grabbing;
+}
+
+.touch-controls__thumb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3rem;
+  height: 3rem;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  border: 2px solid rgb(148 163 184 / 0.5);
+  background: rgb(226 232 240 / 0.15);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.touch-controls__thumb.touch-controls__thumb--active {
+  opacity: 1;
 }
