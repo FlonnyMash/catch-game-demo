@@ -9,12 +9,14 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.39.0",
     "@tailwindcss/postcss": "^4.3.0",
     "autoprefixer": "^10.5.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
     "typescript": "~6.0.2",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "wrangler": "^4.95.0"
   },
   "dependencies": {
     "phaser": "^4.1.0"

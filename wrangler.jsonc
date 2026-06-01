@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "catch-game-demo",
+  "compatibility_date": "2025-06-01",
+  "assets": {
+    "not_found_handling": "single-page-application"
+  }
+}
