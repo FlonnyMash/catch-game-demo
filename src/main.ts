@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PlayScene } from './game/scenes/PlayScene';
+import { mountGameOverlays } from './ui/overlayLayout';
 import { setupUIManager } from './ui/UIManager';
 import './style.css';
 
@@ -62,6 +63,7 @@ const bootstrapGame = async (): Promise<void> => {
   };
 
   const game = new Phaser.Game(phaserConfig);
+  mountGameOverlays(game);
   setupUIManager(game);
 };
 

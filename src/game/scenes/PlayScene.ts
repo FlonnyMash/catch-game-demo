@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PLAYER_TOUCH_EVENT, type PlayerTouchPayload } from '../../ui/touchControls';
 
 type ItemType = 'good' | 'bad';
 
@@ -82,6 +83,19 @@ export class PlayScene extends Phaser.Scene {
   private readonly onPlayRequested = (): void => {
     this.startRound();
   };
+  private readonly onPlayerTouch = (payload: PlayerTouchPayload): void => {
+    if (!this.isPlaying) {
+      return;
+    }
+
+    if (payload.active) {
+      this.touchActive = true;
+      this.touchTargetX = payload.gameX;
+      return;
+    }
+
+    this.clearTouchInput();
+  };
 
   constructor() {
     super('PlayScene');
@@ -145,12 +159,12 @@ export class PlayScene extends Phaser.Scene {
       this,
     );
 
-    this.setupTouchInput();
-
+    this.game.events.on(PLAYER_TOUCH_EVENT, this.onPlayerTouch);
     this.game.events.on('uiPlayRequested', this.onPlayRequested);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.game.events.off(PLAYER_TOUCH_EVENT, this.onPlayerTouch);
       this.game.events.off('uiPlayRequested', this.onPlayRequested);
-      this.teardownTouchInput();
+      this.clearTouchInput();
       this.clearRoundTimers();
     });
 
@@ -260,45 +274,9 @@ export class PlayScene extends Phaser.Scene {
     this.game.events.emit('gameOver', { score: this.score });
   }
 
-  private setupTouchInput(): void {
-    this.input.on('pointerdown', this.handlePointerDown, this);
-    this.input.on('pointermove', this.handlePointerMove, this);
-    this.input.on('pointerup', this.handlePointerUp, this);
-    this.input.on('pointerupoutside', this.handlePointerUp, this);
-  }
-
   private clearTouchInput(): void {
     this.touchActive = false;
     this.touchTargetX = null;
-  }
-
-  private teardownTouchInput(): void {
-    this.input.off('pointerdown', this.handlePointerDown, this);
-    this.input.off('pointermove', this.handlePointerMove, this);
-    this.input.off('pointerup', this.handlePointerUp, this);
-    this.input.off('pointerupoutside', this.handlePointerUp, this);
-    this.clearTouchInput();
-  }
-
-  private handlePointerDown(pointer: Phaser.Input.Pointer): void {
-    if (!this.isPlaying || !pointer.isDown) {
-      return;
-    }
-
-    this.touchActive = true;
-    this.touchTargetX = pointer.worldX;
-  }
-
-  private handlePointerMove(pointer: Phaser.Input.Pointer): void {
-    if (!this.isPlaying || !this.touchActive || !pointer.isDown) {
-      return;
-    }
-
-    this.touchTargetX = pointer.worldX;
-  }
-
-  private handlePointerUp(): void {
-    this.clearTouchInput();
   }
 
   private createPlayerAnimations(): void {
